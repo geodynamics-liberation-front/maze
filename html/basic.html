@@ -1,0 +1,81 @@
+<html>
+<head>
+<script>
+"use strict";
+
+var running=true,last_draw,canvas,ctx
+
+function paint(t)
+{
+	ctx.fillStyle="#000000"
+	ctx.fillRect(0,0,canvas.width,canvas.height)
+	ctx.beginPath()
+	ctx.arc(ball.x,ball.y,10,0,2*Math.PI)
+	ctx.fillStyle=ball.color
+	ctx.fill()
+	if( running ) window.requestAnimationFrame(paint)
+	
+}
+
+function windowResize(e)
+{
+	canvas.width=window.innerWidth
+	canvas.height=window.innerHeight
+	console.log("Canvas "+canvas.width+"x"+canvas.height)
+	paint(performance.now())
+}
+
+function visibilityChange(e)
+{
+	console.log('Visibility Change')
+	if( document['hidden'] )
+	{
+		pause()
+	}
+	else
+	{
+		unpause()
+	}
+}
+
+function pause()
+{
+	running=false;
+}
+
+function unpause()
+{
+	running=true;
+	last_draw=performance.now()
+	paint(performance.now())
+}
+
+function start()
+{
+	running=true;
+	windowResize()
+}
+
+function init()
+{
+	canvas=document.getElementsByTagName('canvas')[0]
+	ctx=canvas.getContext('2d')
+	canvas.width=window.innerWidth
+	canvas.height=window.innerHeight
+	window.addEventListener('resize',windowResize)
+	document.addEventListener("visibilitychange", visibilityChange);
+	start()
+}
+</script>
+<style>
+canvas {
+	position: fixed;
+	top: 0;
+	left: 0;
+}
+</style>
+</head>
+<body onload="init()">
+<canvas></canvas>
+</body>
+</html>

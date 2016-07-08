@@ -1,0 +1,298 @@
+<html>
+<head>
+<script>
+"use strict";
+
+var running=false,last_draw,canvas,ctx,maze
+
+var NORTH=8, EAST=4, SOUTH=2, WEST=1
+var LEFT=1
+var TOP=2
+var UNVISITED=4
+var VISITED=~UNVISITED
+
+function Generator(rows,cols,maze,notify)
+{
+	this.cells=[]
+	this.cells.rows=rows
+	this.cells.cols=cols
+	this.path=[]
+	this.generating=false
+	this.delay=10
+	this.maze=maze
+	this.notify=notify
+	this.generating=false
+}
+
+Generator.prototype.generate=function()
+{
+	for( var i=0; i<this.cells.rows; i++ )
+	{
+		this.cells[i]=[]
+		for( var j=0; j<this.cells.cols; j++ )
+		{
+			this.cells[i][j]=LEFT|TOP|UNVISITED
+		}
+	}
+	this.maze.cells=this.cells
+	var r=Math.floor(this.cells.rows*Math.random())
+	var c=Math.floor(this.cells.cols*Math.random())
+	console.log('Generating Maze')
+	this.generating=true
+	this.visit(r,c)
+}
+
+Generator.prototype.visit=function(r,c)
+{
+	var pos,p,d
+	var generator=this
+	// paint the maze
+	paint(performance.now())
+
+	//  make the cell visited
+	this.cells[r][c]&=VISITED
+
+	// find the available cells
+	pos=[]
+	if ( r>0                 && ( this.cells[r-1][c] & UNVISITED ) ) pos.push('n')
+	if ( r<this.cells.rows-1 && ( this.cells[r+1][c] & UNVISITED ) ) pos.push('s')
+	if ( c>0                 && ( this.cells[r][c-1] & UNVISITED ) ) pos.push('w')
+	if ( c<this.cells.cols-1 && ( this.cells[r][c+1] & UNVISITED ) ) pos.push('e')
+
+	if ( pos.length==0 ) // go back
+	{
+		// Throws an index error if len(path)==0, 
+		// i.e. all squares have been visited
+		p=this.path.pop()
+		if( p===undefined ) 
+		{
+			this.generating=false
+			console.log('Maze generated')
+			this.notify()
+		}
+		else
+		{
+			window.setTimeout(function() { generator.visit(p.r,p.c); },this.delay/2 )
+		}
+	}
+	else
+	{	
+		// record this position
+		this.path.push({r:r,c:c})
+		// select the next direction
+		d=pos[Math.floor(Math.random()*pos.length)]
+		switch(d)
+		{
+			case 'n':
+				this.cells[r][c]&=~TOP
+				r=r-1
+				break;
+			case 's':
+				r=r+1
+				this.cells[r][c]&=~TOP
+				break;
+			case 'w':
+				this.cells[r][c]&=~LEFT
+				c=c-1
+				break;
+			case 'e':
+				c=c+1
+				this.cells[r][c]&=~LEFT
+				break;
+		}
+		window.setTimeout(function() { generator.visit(r,c); },this.delay )
+	}
+}
+
+function Maze(rows,cols)
+{
+	console.log('New Maze')
+	var maze=this
+	this.color="#00ff00"
+	this.cells=[]
+	this.rows=rows
+	this.cols=cols
+	this.generator=new Generator(this.rows,this.cols,this,function() { maze.ready(); })
+
+	console.log('Blank Maze')
+}
+
+Maze.prototype.ready=function()
+{
+	console.log("Maze ready")
+}
+
+Maze.prototype.paint=function(canvas,ctx)
+{
+	var dx=canvas.width/this.cells.cols
+	var dy=canvas.height/this.cells.rows
+	ctx.beginPath()
+	ctx.strokeStyle=this.color
+	ctx.moveTo(0,canvas.height)
+	ctx.lineTo(canvas.width,canvas.height)
+	ctx.moveTo(canvas.width,0)
+	ctx.lineTo(canvas.width,canvas.height)
+	for( var i=0; i<this.cells.rows; i++ )
+	{
+		for( var j=0; j<this.cells.cols; j++ )
+		{
+			if( this.cells[i][j] & LEFT )
+			{
+				ctx.moveTo(j    *dx,i*dy)
+				ctx.lineTo(j*dx,(i+1)*dy)
+			}
+			if( this.cells[i][j] & TOP )
+			{
+				ctx.moveTo(j*dx,i*dy)
+				ctx.lineTo((j+1)*dx,i*dy)
+			}
+		}
+	}
+	ctx.stroke()
+
+	if(this.generator.generating && this.generator.path.length>1)
+	{
+		var path=this.generator.path
+		ctx.beginPath()
+		ctx.strokeStyle="#ff0000"
+		ctx.moveTo((path[0].c+.5)*dx,(path[0].r+.5)*dy)
+		for( var i=1; i<path.length; i++ )
+		{
+			ctx.lineTo((path[i].c+.5)*dx,(path[i].r+.5)*dy)
+		}
+		ctx.stroke()
+	}
+}
+
+function mat(r,c,v)
+{
+	v=v||0
+	m=[]
+	m.toString=mat_string
+	m.rows=r
+	m.cols=c
+	for( var i=0; i<m.rows; i++ )
+	{
+		var r=m[i]
+		for( var j=0; j<m.cols; j++ )
+		{
+			r[j]=v
+		}
+	}
+	return m;
+}
+
+function print_mat(m)
+{
+	if( m.rows===undefined ) { m.rows=m.length }	
+	if( m.cols===undefined ) { m.cols=m[0].length }	
+
+	var w=0
+	for( var i=0; i<m.rows; i++ )
+	{
+		var r=m[i]
+		for( var j=0; j<m.cols; j++ )
+		{
+			w=Math.max(w,r[j].toString().length)
+		}
+	}
+	w=w+1
+	var row="\n"
+	for( var i=0; i<m.rows; i++ )
+	{
+		var r=m[i]
+		row=row+"|"
+		for( var j=0; j<m.cols; j++ )
+		{
+			var cell=r[j].toString()
+			while( cell.length<w ) { cell=' '+cell }
+			row=row+cell	
+		}
+		row=row+" |\n"
+	}
+	console.log(row)
+}
+
+function paint(t)
+{
+	ctx.fillStyle="#000000"
+	ctx.fillRect(0,0,canvas.width,canvas.height)
+	if( maze ) 
+		maze.paint(canvas,ctx)
+	else
+		console.log("No maze to paint")
+	if( running ) window.requestAnimationFrame(paint)
+	
+}
+
+function windowResize(e)
+{
+	canvas.width=window.innerWidth
+	canvas.height=window.innerHeight
+	console.log("Canvas "+canvas.width+"x"+canvas.height)
+	paint(performance.now())
+}
+
+function visibilityChange(e)
+{
+	console.log('Visibility Change')
+	if( document['hidden'] )
+	{
+		pause()
+	}
+	else
+	{
+		unpause()
+	}
+}
+
+function pause()
+{
+	running=false;
+}
+
+function unpause()
+{
+	running=true;
+	last_draw=performance.now()
+	paint(performance.now())
+}
+
+function start()
+{
+	console.log('start()')
+	windowResize()
+	running=false
+	var rows=20
+	var cols=Math.floor(rows*canvas.width/canvas.height)
+
+	rows=14
+	cols=12
+	maze=new Maze(rows,cols)
+	maze.generator.generate()
+}
+
+function init()
+{
+	console.log('init()')
+	canvas=document.getElementsByTagName('canvas')[0]
+	ctx=canvas.getContext('2d')
+	canvas.width=window.innerWidth
+	canvas.height=window.innerHeight
+	window.addEventListener('resize',windowResize)
+	document.addEventListener("visibilitychange", visibilityChange);
+	start()
+}
+</script>
+<style>
+canvas {
+	position: fixed;
+	top: 0;
+	left: 0;
+}
+</style>
+</head>
+<body onload="init()">
+<canvas></canvas>
+</body>
+</html>
