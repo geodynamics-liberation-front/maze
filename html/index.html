@@ -11,6 +11,7 @@ var TOP=2
 var UNVISITED=4
 var VISITED=~UNVISITED
 
+
 function Generator(rows,cols,maze,notify)
 {
 	this.cells=[]
@@ -61,8 +62,8 @@ Generator.prototype.visit=function(r,c)
 
 	if ( pos.length==0 ) // go back
 	{
-		// Throws an index error if len(path)==0, 
-		// i.e. all squares have been visited
+		// If len(path)==0, i.e. all squares have been visited
+		// then p is undefined
 		p=this.path.pop()
 		if( p===undefined ) 
 		{
@@ -108,7 +109,11 @@ function Maze(rows,cols)
 {
 	console.log('New Maze')
 	var maze=this
-	this.color="#00ff00"
+	this.wall_color="#00ff00"
+	this.path_color="#ff0000"
+	this.background_color="#000000"
+	this.background_color="#000000"
+	this.line_width=3
 	this.cells=[]
 	this.rows=rows
 	this.cols=cols
@@ -127,11 +132,12 @@ Maze.prototype.paint=function(canvas,ctx)
 	var dx=canvas.width/this.cells.cols
 	var dy=canvas.height/this.cells.rows
 	ctx.beginPath()
-	ctx.strokeStyle=this.color
-	ctx.moveTo(0,canvas.height)
-	ctx.lineTo(canvas.width,canvas.height)
-	ctx.moveTo(canvas.width,0)
-	ctx.lineTo(canvas.width,canvas.height)
+	ctx.strokeStyle=this.wall_color
+	ctx.lineWidth = this.line_width
+	ctx.moveTo(this.line_width/2,             canvas.height-this.line_width/2)
+	ctx.lineTo(canvas.width-this.line_width/2,canvas.height-this.line_width/2)
+	ctx.moveTo(canvas.width-this.line_width/2,this.line_width/2)
+	ctx.lineTo(canvas.width-this.line_width/2,canvas.height-this.line_width/2)
 	for( var i=0; i<this.cells.rows; i++ )
 	{
 		for( var j=0; j<this.cells.cols; j++ )
@@ -154,7 +160,7 @@ Maze.prototype.paint=function(canvas,ctx)
 	{
 		var path=this.generator.path
 		ctx.beginPath()
-		ctx.strokeStyle="#ff0000"
+		ctx.strokeStyle=this.path_color
 		ctx.moveTo((path[0].c+.5)*dx,(path[0].r+.5)*dy)
 		for( var i=1; i<path.length; i++ )
 		{
@@ -215,12 +221,16 @@ function print_mat(m)
 
 function paint(t)
 {
-	ctx.fillStyle="#000000"
-	ctx.fillRect(0,0,canvas.width,canvas.height)
 	if( maze ) 
+	{
+		ctx.fillStyle=maze.background_color
+		ctx.fillRect(0,0,canvas.width,canvas.height)
 		maze.paint(canvas,ctx)
+	}
 	else
-		console.log("No maze to paint")
+	{
+		console.log("No maze to paint")	
+	}
 	if( running ) window.requestAnimationFrame(paint)
 	
 }
@@ -266,9 +276,10 @@ function start()
 	var rows=20
 	var cols=Math.floor(rows*canvas.width/canvas.height)
 
-	rows=14
-	cols=12
 	maze=new Maze(rows,cols)
+	maze.wall_color="#000000"
+	maze.path_color="#777777"
+	maze.background_color="#FFFFFF"
 	maze.generator.generate()
 }
 
@@ -277,6 +288,10 @@ function init()
 	console.log('init()')
 	canvas=document.getElementsByTagName('canvas')[0]
 	ctx=canvas.getContext('2d')
+	ctx._moveTo=ctx.moveTo
+	ctx.moveTo=function(x,y) { this._moveTo(Math.round(x)+.5,Math.round(y)+.5) }
+	ctx._lineTo=ctx.lineTo
+	ctx.lineTo=function(x,y) { this._lineTo(Math.round(x)+.5,Math.round(y)+.5) }
 	canvas.width=window.innerWidth
 	canvas.height=window.innerHeight
 	window.addEventListener('resize',windowResize)
@@ -289,6 +304,12 @@ canvas {
 	position: fixed;
 	top: 0;
 	left: 0;
+}
+@media print {
+	canvas {
+		width: 100%;
+		max-height:100%;
+	}
 }
 </style>
 </head>
